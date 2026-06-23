@@ -18,7 +18,7 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 
-# ── Name helpers ──────────────────────────────────────────────────────────────
+# ── Name helpers ──────────────────────────────────────────────────────────────────
 
 def snake_to_pascal(s):
     return ''.join(p.title() for p in re.split(r'[-_]', s))
@@ -130,7 +130,6 @@ def build_context(ir, strategy):
         op_id       = infer_operation_id(flow)
         req_type    = infer_request_type(flow, class_prefix)
         resp_type   = infer_response_type(flow, class_prefix)
-        # DataWeave IDs for this flow (for TODO comments)
         dw_ids = [dw['id'] for dw in ir['dataweave'] if dw['flow'] == flow['name'] and dw['send_to_llm']]
 
         endpoints.append({
@@ -151,40 +150,68 @@ def build_context(ir, strategy):
         if eh['exception_class'] not in ('Exception', 'ApiException')
     ])
 
+    raml_types = ir.get('raml_types', [])
+
+    # Merge RAML contract into endpoints (override inferred types with RAML authoritative types)
+    for ep in endpoints:
+        for flow in http_flows:
+            if flow.get('trigger', {}).get('method') == ep['method'] and \
+               flow.get('trigger', {}).get('path') == ep['full_path']:
+                contract = flow.get('raml_contract')
+                if contract:
+                    if contract.get('request_type'):
+                        ep['request_type'] = contract['request_type']
+                    if contract.get('response_type'):
+                        ep['response_type'] = contract['response_type']
+                    if contract.get('operation_id'):
+                        ep['operation_id'] = contract['operation_id']
+                    if contract.get('query_params'):
+                        ep['query_params'] = contract['query_params']
+                    if contract.get('description'):
+                        ep['description'] = contract['description']
+                break
+
     return {
-        'ir':             ir,
-        'strategy':       strategy,
-        'app_name':       app_name,
-        'package':        package,
-        'pkg_root':       pkg_root,
-        'pkg_suffix':     pkg_suffix,
-        'class_prefix':   class_prefix,
-        'base_path':      base_path,
-        'endpoints':      endpoints,
-        'http_flows':     http_flows,
-        'entities':       ir.get('entities', []),
-        'error_handlers': unique_error_handlers(ir.get('error_handlers', [])),
-        'sub_exceptions': sub_exceptions,
-        'has_db':         ir['connectors']['db']['present'],
-        'has_jms':        ir['connectors']['jms']['present'],
-        'has_batch':      ir['connectors']['batch']['present'],
-        'has_scatter':    ir['connectors']['scatter_gather']['present'],
-        'has_http_client':ir['connectors']['http_client']['present'],
-        'jms_destinations': ir['connectors']['jms'].get('destinations', []),
-        'db_tables':      ir['connectors']['db'].get('tables', []),
-        'java_version':   strategy['project']['java_version'],
-        'sb_version':     strategy['project']['spring_boot_version'],
-        'jms_client':     strategy['messaging']['jms_client'],
-        'jms_broker':     strategy['messaging']['jms_broker'],
-        'db_access':      strategy['data']['db_access'],
-        'error_strategy': strategy['error_handling']['strategy'],
-        'exc_base':       strategy['error_handling']['exception_base_class'],
-        'resilience':     strategy['resilience']['retry'],
-        'test_style':     strategy['testing']['integration'],
+        'ir':              ir,
+        'strategy':        strategy,
+        'app_name':        app_name,
+        'package':         package,
+        'pkg_root':        pkg_root,
+        'pkg_suffix':      pkg_suffix,
+        'class_prefix':    class_prefix,
+        'base_path':       base_path,
+        'endpoints':       endpoints,
+        'http_flows':      http_flows,
+        'entities':        ir.get('entities', []),
+        'raml_types':      raml_types,
+        'raml_record_types': [t for t in raml_types if t.get('generate') == 'record'],
+        'raml_enum_types':   [t for t in raml_types if t.get('generate') == 'enum'],
+        'error_handlers':  unique_error_handlers(ir.get('error_handlers', [])),
+        'sub_exceptions':  sub_exceptions,
+        'has_db':          ir['connectors']['db']['present'],
+        'has_jms':         ir['connectors']['jms']['present'],
+        'has_batch':       ir['connectors']['batch']['present'],
+        'has_scatter':     ir['connectors']['scatter_gather']['present'],
+        'has_http_client': ir['connectors']['http_client']['present'],
+        'has_raml':        bool(ir.get('raml', {}).get('present')),
+        'jms_destinations':  ir['connectors']['jms'].get('destinations', []),
+        'db_tables':         ir['connectors']['db'].get('tables', []),
+        'http_client_configs': ir.get('http_client_configs', {}),
+        'unknown_connectors': ir.get('unknown_connectors', []),
+        'extra_pom_deps':     ir.get('extra_pom_dependencies', []),
+        'java_version':    strategy['project']['java_version'],
+        'sb_version':      strategy['project']['spring_boot_version'],
+        'jms_client':      strategy['messaging']['jms_client'],
+        'jms_broker':      strategy['messaging']['jms_broker'],
+        'db_access':       strategy['data']['db_access'],
+        'error_strategy':  strategy['error_handling']['strategy'],
+        'exc_base':        strategy['error_handling']['exception_base_class'],
+        'resilience':      strategy['resilience']['retry'],
+        'test_style':      strategy['testing']['integration'],
     }
 
 
-# ── File plan ─────────────────────────────────────────────────────────────────
+# ── File plan ───────────────────────────────────────────────────────────────────────
 
 def file_plan(ctx, template_dir, out_dir):
     """Return list of (template_name, output_path, extra_ctx)."""
@@ -207,6 +234,18 @@ def file_plan(ctx, template_dir, out_dir):
         plan.append(('Entity.java.j2',     java_main / 'domain'     / f'{entity["name"]}.java',           {'entity': entity}))
         plan.append(('Repository.java.j2', java_main / 'repository' / f'{entity["name"]}Repository.java', {'entity': entity}))
 
+    # RAML-derived DTO records (Java 21 records with @JsonProperty)
+    for raml_type in ctx.get('raml_record_types', []):
+        plan.append(('DtoRecord.java.j2',
+                     java_main / 'dto' / f'{raml_type["name"]}.java',
+                     {'type': raml_type}))
+
+    # RAML-derived enum types
+    for raml_type in ctx.get('raml_enum_types', []):
+        plan.append(('EnumType.java.j2',
+                     java_main / 'dto' / f'{raml_type["name"]}.java',
+                     {'type': raml_type}))
+
     if ctx['has_jms']:
         plan.append(('JmsConfig.java.j2',  java_main / 'messaging' / 'JmsConfig.java', {}))
 
@@ -220,7 +259,7 @@ def file_plan(ctx, template_dir, out_dir):
     return plan
 
 
-# ── Renderer ──────────────────────────────────────────────────────────────────
+# ── Renderer ────────────────────────────────────────────────────────────────────
 
 def render_all(ctx, template_dir, out_dir):
     env = Environment(
@@ -256,12 +295,20 @@ def main():
     parser.add_argument('--app',           required=True)
     parser.add_argument('--project-root',  default='.')
     parser.add_argument('--toolkit-root',  default='./mule-migration-toolkit')
+    parser.add_argument('--skill-root',    default=None, help='Skill root (overrides toolkit-root for templates)')
     args = parser.parse_args()
 
     project_root  = Path(args.project_root).resolve()
-    toolkit_root  = Path(args.toolkit_root).resolve()
-    template_dir  = toolkit_root / 'tool' / 'templates'
-    strategy_file = toolkit_root / 'migration-strategy.yaml'
+    if args.skill_root:
+        skill_root   = Path(args.skill_root).resolve()
+        template_dir = skill_root / 'tool' / 'templates'
+        strategy_file = project_root / 'migration-strategy.yaml'
+    else:
+        toolkit_root  = Path(args.toolkit_root).resolve()
+        template_dir  = toolkit_root / 'tool' / 'templates'
+        strategy_file = toolkit_root / 'migration-strategy.yaml'
+        if not strategy_file.exists():
+            strategy_file = project_root / 'migration-strategy.yaml'
     ir_path       = project_root / 'output' / args.app / 'ir.json'
     out_dir       = project_root / 'output' / args.app
 
