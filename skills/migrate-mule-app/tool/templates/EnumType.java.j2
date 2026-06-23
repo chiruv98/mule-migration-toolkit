@@ -1,0 +1,32 @@
+package {{ package }}.dto;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
+// Generated from: {{ type.get('raml_name', type.name) }} enum ({{ type.get('source', 'raml') | upper }})
+{% if type.get('description') %}// {{ type.description }}
+{% endif %}
+public enum {{ type.name }} {
+
+{% for value in type.enum_values %}
+    {{ value | upper | replace('-', '_') | replace(' ', '_') }}("{{ value }}"){% if not loop.last %},{% endif %}
+
+{% endfor %};
+
+    private final String value;
+
+    {{ type.name }}(String value) {
+        this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() { return value; }
+
+    @JsonCreator
+    public static {{ type.name }} fromValue(String value) {
+        for ({{ type.name }} e : values()) {
+            if (e.value.equalsIgnoreCase(value)) return e;
+        }
+        throw new IllegalArgumentException("Unknown {{ type.name }}: " + value);
+    }
+}

@@ -1,0 +1,33 @@
+package {{ package }}.dto;
+
+{% set needs_list = false %}
+{% for field in type.fields %}{% if field.java_type.startswith('List<') %}{% set needs_list = true %}{% endif %}{% endfor %}
+{% if needs_list %}import java.util.List;{% endif %}
+{% if type.fields | selectattr('java_type', 'equalto', 'BigDecimal') | list %}import java.math.BigDecimal;{% endif %}
+{% if type.fields | selectattr('java_type', 'equalto', 'LocalDateTime') | list %}import java.time.LocalDateTime;{% endif %}
+{% if type.fields | selectattr('java_type', 'equalto', 'LocalDate') | list %}import java.time.LocalDate;{% endif %}
+import com.fasterxml.jackson.annotation.JsonProperty;
+{% if type.fields | selectattr('required', 'equalto', true) | list %}import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;{% endif %}
+
+// Generated from: {{ type.get('raml_name', type.name) }} ({{ type.get('source', 'raml') | upper }})
+{% if type.get('description') %}// {{ type.description }}
+{% endif %}
+public record {{ type.name }}(
+{% for field in type.fields %}
+{% if field.required and field.java_type == 'String' %}
+        @NotBlank @JsonProperty("{{ field.json_property }}") {{ field.java_type }} {{ field.java_name }}{% if not loop.last %},{% endif %}
+
+{% elif field.required %}
+        @NotNull @JsonProperty("{{ field.json_property }}") {{ field.java_type }} {{ field.java_name }}{% if not loop.last %},{% endif %}
+
+{% else %}
+        @JsonProperty("{{ field.json_property }}") {{ field.java_type }} {{ field.java_name }}{% if not loop.last %},{% endif %}
+
+{% endif %}
+{% endfor %}
+) {
+{% if type.get('extends') %}
+    // Inherits from: {{ type.extends }}
+{% endif %}
+}
