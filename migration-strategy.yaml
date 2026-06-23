@@ -1,0 +1,61 @@
+# Migration Strategy Contract
+# Set ONCE per project. Every migration step reads this file.
+# Changing a value here changes the output for ALL apps — that is the point.
+
+project:
+  name: mule-to-java-demo
+  java_version: 21
+  spring_boot_version: "3.3"
+  build_tool: maven
+
+# ── Async & Concurrency ────────────────────────────────────────────────────────
+async:
+  style: virtual-threads          # virtual-threads | webflux
+  scatter_gather: CompletableFuture  # CompletableFuture | Mono.zip
+  async_scope: "@Async"           # @Async | Reactor
+
+# ── Data Access ───────────────────────────────────────────────────────────────
+data:
+  db_access: spring-data-jpa      # spring-data-jpa | jdbc-template | r2dbc
+  cache: spring-cache-caffeine    # spring-cache-caffeine | redis
+
+# ── Messaging ─────────────────────────────────────────────────────────────────
+messaging:
+  jms_client: spring-jms          # spring-jms | spring-amqp | spring-kafka
+  jms_broker: activemq-artemis    # activemq-artemis | rabbitmq | kafka
+
+# ── DataWeave Translation ─────────────────────────────────────────────────────
+dataweave:
+  json_library: jackson           # jackson
+  object_mapping: mapstruct       # mapstruct | manual
+  array_ops: java-streams         # java-streams
+  format_only: skip-llm           # format-only DataWeave never goes to LLM
+
+# ── Error Handling ────────────────────────────────────────────────────────────
+error_handling:
+  strategy: controller-advice     # controller-advice | custom-exception-handler
+  exception_base_class: ApiException
+
+# ── Resilience ────────────────────────────────────────────────────────────────
+resilience:
+  retry: resilience4j             # resilience4j | spring-retry
+  circuit_breaker: resilience4j
+
+# ── Security ─────────────────────────────────────────────────────────────────
+security:
+  mechanism: spring-security-oauth2-resource-server
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+testing:
+  unit: junit5-mockito
+  integration: testcontainers
+
+# ── Observability ─────────────────────────────────────────────────────────────
+observability:
+  metrics: micrometer-prometheus
+  tracing: opentelemetry
+
+# ── Target Architecture ───────────────────────────────────────────────────────
+architecture:
+  pattern: hexagonal              # hexagonal | layered
+  package_root: com.demo.migration

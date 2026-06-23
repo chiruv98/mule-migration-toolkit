@@ -1,0 +1,13 @@
+package {{ package }}.exception;
+
+// Migrated from: on-error-{{ sub_ex.strategy }} type="{{ sub_ex.mule_type }}"
+public class {{ sub_ex.exception_class }} extends {{ exc_base }} {
+
+    public {{ sub_ex.exception_class }}(String message) {
+        super("{{ sub_ex.error_code }}", message);
+    }
+
+    public {{ sub_ex.exception_class }}(String message, Throwable cause) {
+        super("{{ sub_ex.error_code }}", message, cause);
+    }
+}

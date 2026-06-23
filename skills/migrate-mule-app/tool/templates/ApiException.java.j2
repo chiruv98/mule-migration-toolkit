@@ -1,0 +1,19 @@
+package {{ package }}.exception;
+
+// Migrated from: Mule error taxonomy — contract: exception_base_class={{ exc_base }}
+public class {{ exc_base }} extends RuntimeException {
+
+    private final String errorCode;
+
+    public {{ exc_base }}(String errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+
+    public {{ exc_base }}(String errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
+
+    public String getErrorCode() { return errorCode; }
+}

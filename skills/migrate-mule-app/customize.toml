@@ -1,0 +1,4 @@
+[skill]
+name        = "migrate-mule-app"
+description = "Migrate a Mule 4 application to Java Spring Boot using the Mule Migration Toolkit"
+version     = "1.0.0"

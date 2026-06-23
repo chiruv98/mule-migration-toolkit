@@ -1,0 +1,40 @@
+package {{ package }}.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import java.util.Map;
+
+// Migrated from: global + per-flow error-handlers — contract: {{ error_strategy }}
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+{% for eh in error_handlers %}
+{% if eh.exception_class == 'Exception' %}
+    // Migrated from: on-error-{{ eh.strategy }} type="{{ eh.mule_type }}"
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleGeneral(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "{{ eh.error_code }}", "message", "An unexpected error occurred"));
+    }
+{% elif eh.exception_class != exc_base %}
+    // Migrated from: on-error-{{ eh.strategy }} type="{{ eh.mule_type }}"
+    @ExceptionHandler({{ eh.exception_class }}.class)
+    public ResponseEntity<Map<String, String>> handle{{ eh.exception_class }}({{ eh.exception_class }} ex) {
+        return ResponseEntity.status({{ eh.http_status }})
+                .body(Map.of("error", ex.getErrorCode(), "message", ex.getMessage()));
+    }
+{% endif %}
+{% endfor %}
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .findFirst().orElse("Validation failed");
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "INVALID_INPUT", "message", message));
+    }
+}

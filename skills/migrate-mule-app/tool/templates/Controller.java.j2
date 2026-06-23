@@ -1,0 +1,40 @@
+package {{ package }}.controller;
+
+import {{ package }}.service.{{ class_prefix }}Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import java.util.List;
+
+// Migrated from: APIKit router + HTTP flows — contract: no try/catch, errors via @RestControllerAdvice
+@RestController
+@RequestMapping("{{ base_path }}")
+public class {{ class_prefix }}Controller {
+
+    private final {{ class_prefix }}Service service;
+
+    public {{ class_prefix }}Controller({{ class_prefix }}Service service) {
+        this.service = service;
+    }
+
+{% for ep in endpoints %}
+    // Migrated from: {{ ep.method }} {{ ep.full_path }}{% if ep.dw_ids %} — {{ ep.dw_ids | join(', ') }}{% endif %}
+
+    @{{ ep.annotation }}{% if ep.sub_path %}("{{ ep.sub_path }}"){% endif %}
+
+    public ResponseEntity<{{ ep.response_type }}> {{ ep.operation_id }}(
+{% for param in ep.path_params %}
+            @PathVariable Long {{ param }}{% if not loop.last or ep.has_body %},{% endif %}
+
+{% endfor %}
+{% if ep.has_body %}
+            @Valid @RequestBody {{ ep.request_type }} request
+{% endif %}
+    ) {
+        // TODO Stage 3 — translate DataWeave {{ ep.dw_ids | join(', ') }}
+        return null;
+    }
+
+{% endfor %}
+}

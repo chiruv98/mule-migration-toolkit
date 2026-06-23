@@ -1,0 +1,2 @@
+module,skill,display-name,menu-code,description,action,args,phase,preceded-by,followed-by,required,output-location,outputs
+mmt,migrate-mule-app,Migrate Mule App,MM,Migrate a Mule 4 XML app to Spring Boot — parse IR then generate scaffold then LLM-translate DataWeave,migrate,app-name,anytime,,,false,output/{app},Spring Boot Maven project

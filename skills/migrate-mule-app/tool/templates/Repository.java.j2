@@ -1,0 +1,12 @@
+package {{ package }}.repository;
+
+import {{ package }}.domain.{{ entity.name }};
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+// Migrated from: db operations on {{ entity.table }}
+public interface {{ entity.name }}Repository extends JpaRepository<{{ entity.name }}, Long> {
+
+    // Add query methods here as needed during Stage 3
+    List<{{ entity.name }}> findByStatusOrderByCreatedAtDesc(String status);
+}

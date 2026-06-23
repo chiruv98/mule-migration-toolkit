@@ -1,0 +1,41 @@
+package {{ package }}.domain;
+
+import jakarta.persistence.*;
+{% set types = entity.fields | map(attribute='java_type') | list %}
+{% if 'BigDecimal' in types %}import java.math.BigDecimal;{% endif %}
+{% if 'LocalDateTime' in types %}import java.time.LocalDateTime;{% endif %}
+
+// Migrated from: {{ entity.table }} table
+@Entity
+@Table(name = "{{ entity.table }}")
+public class {{ entity.name }} {
+
+{% for field in entity.fields %}
+{% if field.pk %}
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private {{ field.java_type }} {{ field.field }};
+{% else %}
+    @Column(name = "{{ field.column }}"{% if not field.nullable %}, nullable = false{% endif %})
+    private {{ field.java_type }} {{ field.field }};
+{% endif %}
+{% endfor %}
+{% if entity.fields | selectattr('java_type', 'equalto', 'LocalDateTime') | list %}
+
+    @PrePersist
+    protected void onCreate() {
+{% for field in entity.fields %}
+{% if field.java_type == 'LocalDateTime' and not field.pk %}
+        if ({{ field.field }} == null) {{ field.field }} = java.time.LocalDateTime.now();
+{% endif %}
+{% endfor %}
+    }
+{% endif %}
+
+{% for field in entity.fields %}
+    public {{ field.java_type }} get{{ field.field | pascal }}() { return {{ field.field }}; }
+{% if not field.pk %}
+    public void set{{ field.field | pascal }}({{ field.java_type }} {{ field.field }}) { this.{{ field.field }} = {{ field.field }}; }
+{% endif %}
+{% endfor %}
+}

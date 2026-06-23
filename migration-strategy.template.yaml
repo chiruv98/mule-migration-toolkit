@@ -1,0 +1,35 @@
+# Migration Strategy Contract — copy this to your project root as migration-strategy.yaml
+# Every migration run reads this file. Change once, applies to all apps.
+
+project:
+  java_version: 21
+  spring_boot_version: "3.3"
+
+async:
+  style: virtual-threads          # virtual-threads | reactive
+  scatter_gather: CompletableFuture
+
+data:
+  db_access: spring-data-jpa      # spring-data-jpa | jdbc-template
+
+messaging:
+  jms_client: spring-jms
+  jms_broker: activemq-artemis    # activemq-artemis | rabbitmq
+
+dataweave:
+  json_library: jackson
+  object_mapping: mapstruct
+
+error_handling:
+  strategy: controller-advice
+  exception_base_class: ApiException
+
+resilience:
+  retry: resilience4j             # resilience4j | spring-retry
+
+testing:
+  integration: testcontainers
+
+architecture:
+  pattern: hexagonal
+  package_root: com.example.migration  # change to your org's package

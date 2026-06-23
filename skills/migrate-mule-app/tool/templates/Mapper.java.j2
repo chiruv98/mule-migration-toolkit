@@ -1,0 +1,22 @@
+package {{ package }}.mapper;
+
+{% for entity in entities %}
+import {{ package }}.domain.{{ entity.name }};
+{% endfor %}
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import java.util.List;
+
+// Migrated from: DataWeave field-mapping expressions
+// TODO Stage 3 — fill in @Mapping annotations from DataWeave translations
+@Mapper(componentModel = "spring")
+public interface {{ class_prefix }}Mapper {
+
+{% for entity in entities %}
+    // TODO Stage 3 — add @Mapping annotations per DataWeave field-mapping
+    {{ entity.name }}Response toResponse({{ entity.name }} {{ entity.name | lower }});
+
+    List<{{ entity.name }}Response> toResponseList(List<{{ entity.name }}> {{ entity.name | lower }}s);
+
+{% endfor %}
+}

@@ -1,0 +1,24 @@
+name: Mule Migration Toolkit
+code: mmt
+version: 1.0.0
+description: LLM-powered Mule 4 to Java Spring Boot migration toolkit with consistent pattern enforcement
+module_greeting: |
+  ✓ Mule Migration Toolkit (mmt) installed.
+
+  Next steps:
+  1. Copy migration-strategy.template.yaml to your project root as migration-strategy.yaml
+  2. Edit migration-strategy.yaml — set your async, db, jms, and error handling choices
+  3. Place Mule apps at: mule-apps/{app-name}/src/main/mule/*.xml
+  4. Install Python deps: pip install -r .claude/skills/migrate-mule-app/tool/requirements.txt
+  5. Run: /migrate-mule-app {app-name}
+
+agents: []
+
+skills:
+  - code: migrate-mule-app
+    path: skills/migrate-mule-app
+    description: Migrate a Mule 4 application to Java Spring Boot
+
+post_install_notes: |
+  The migration-strategy.yaml in your project root is the consistency contract.
+  Every migration run reads it — change it once, affects all apps.

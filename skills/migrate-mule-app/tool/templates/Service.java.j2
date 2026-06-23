@@ -1,0 +1,61 @@
+package {{ package }}.service;
+
+import {{ package }}.mapper.{{ class_prefix }}Mapper;
+{% for entity in entities %}
+import {{ package }}.domain.{{ entity.name }};
+import {{ package }}.repository.{{ entity.name }}Repository;
+{% endfor %}
+{% if has_jms %}
+import org.springframework.jms.core.JmsTemplate;
+{% endif %}
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+public class {{ class_prefix }}Service {
+
+{% for entity in entities %}
+    private final {{ entity.name }}Repository {{ entity.name | lower }}Repository;
+{% endfor %}
+    private final {{ class_prefix }}Mapper mapper;
+{% if has_jms %}
+    private final JmsTemplate jmsTemplate;
+{% endif %}
+
+    public {{ class_prefix }}Service(
+{% for entity in entities %}
+            {{ entity.name }}Repository {{ entity.name | lower }}Repository,
+{% endfor %}
+            {{ class_prefix }}Mapper mapper{% if has_jms %},
+            JmsTemplate jmsTemplate{% endif %}
+    ) {
+{% for entity in entities %}
+        this.{{ entity.name | lower }}Repository = {{ entity.name | lower }}Repository;
+{% endfor %}
+        this.mapper = mapper;
+{% if has_jms %}
+        this.jmsTemplate = jmsTemplate;
+{% endif %}
+    }
+
+{% for ep in endpoints %}
+    // Migrated from: {{ ep.method }} {{ ep.full_path }}
+    // DataWeave to translate: {{ ep.dw_ids | join(', ') if ep.dw_ids else 'none' }}
+    @Transactional{% if ep.method == 'GET' %}(readOnly = true){% endif %}
+
+    public {{ ep.response_type }} {{ ep.operation_id }}(
+{% for param in ep.path_params %}
+            Long {{ param }}{% if not loop.last or ep.has_body %},{% endif %}
+
+{% endfor %}
+{% if ep.has_body %}
+            {{ ep.request_type }} request
+{% endif %}
+    ) {
+        // TODO Stage 3 — implement using ir.json DataWeave: {{ ep.dw_ids | join(', ') if ep.dw_ids else 'no DataWeave' }}
+        throw new UnsupportedOperationException("Not yet migrated");
+    }
+
+{% endfor %}
+}
