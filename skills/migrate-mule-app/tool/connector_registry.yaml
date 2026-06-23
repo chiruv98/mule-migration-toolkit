@@ -1,0 +1,233 @@
+# Connector Registry — maps Mule 4 third-party connector namespaces to Spring Boot equivalents
+# enrich.py reads this to classify unknown connectors and provide LLM with stub templates.
+#
+# Fields:
+#   namespace:       Mule namespace suffix (matches parse.py detection)
+#   spring_pattern:  how to implement in Spring Boot
+#   stub_type:       rest_client | jpa_extension | sdk_wrapper | jms_bridge | file_adapter
+#   dependencies:    Maven coords to add to pom.xml
+#   llm_instruction: injected into Stage 3B LLM prompt for this connector
+
+connectors:
+
+  - namespace: salesforce
+    display: Salesforce
+    spring_pattern: Spring Data + Salesforce REST API via RestClient
+    stub_type: rest_client
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-web
+    llm_instruction: |
+      Convert this Salesforce connector operation to a Spring @Service using RestClient.
+      Use SalesforceRestClient (inject via constructor). Map SOQL queries to RestClient.get()
+      calls to /services/data/v57.0/query?q={soql}. Use Jackson for response mapping.
+      Return type should be a Java record matching the SObject fields.
+
+  - namespace: sap
+    display: SAP
+    spring_pattern: SAP JCo or SAP Cloud SDK wrapper @Service
+    stub_type: sdk_wrapper
+    dependencies:
+      - groupId: com.sap.cloud.sdk.s4hana
+        artifactId: s4hana-all
+        version: 3.67.0
+    llm_instruction: |
+      Convert this SAP connector operation to a Spring @Service using SAP Cloud SDK.
+      Use typed BapiQuery or ODataEntityStub. Wrap in try-catch and throw SapConnectorException.
+      Document the BAPI/RFC name in a // BAPI: {name} comment above the method.
+
+  - namespace: netsuite
+    display: NetSuite
+    spring_pattern: NetSuite REST API via RestClient @Service
+    stub_type: rest_client
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-web
+    llm_instruction: |
+      Convert this NetSuite connector to a Spring @Service using RestClient with OAuth 1.0a.
+      Base URL: https://{accountId}.suitetalk.api.netsuite.com/services/rest/record/v1
+      Use RestClient with NetSuiteAuthInterceptor (generate a stub interface).
+
+  - namespace: servicenow
+    display: ServiceNow
+    spring_pattern: ServiceNow REST API via RestClient @Service
+    stub_type: rest_client
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-web
+    llm_instruction: |
+      Convert this ServiceNow connector to a Spring @Service using RestClient.
+      Base URL: https://{instance}.service-now.com/api/now/table/{table}
+      Use Basic auth injected via @Value. Return type should match the record fields.
+
+  - namespace: workday
+    display: Workday
+    spring_pattern: Workday REST API via RestClient @Service
+    stub_type: rest_client
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-web
+    llm_instruction: |
+      Convert this Workday connector to a Spring @Service using RestClient with OAuth 2.0.
+      Use WorkdayRestClient (generate a stub). Map operations to Workday REST API endpoints.
+
+  - namespace: twilio
+    display: Twilio
+    spring_pattern: Twilio Java SDK @Service
+    stub_type: sdk_wrapper
+    dependencies:
+      - groupId: com.twilio.sdk
+        artifactId: twilio
+        version: "9.14.0"
+    llm_instruction: |
+      Convert this Twilio connector to a Spring @Service using the Twilio Java SDK.
+      Use Twilio.init(accountSid, authToken) in @PostConstruct. Use Message.creator() for SMS,
+      Call.creator() for calls. Inject credentials via @Value from application.yml.
+
+  - namespace: stripe
+    display: Stripe
+    spring_pattern: Stripe Java SDK @Service
+    stub_type: sdk_wrapper
+    dependencies:
+      - groupId: com.stripe
+        artifactId: stripe-java
+        version: "24.10.0"
+    llm_instruction: |
+      Convert this Stripe connector to a Spring @Service using the Stripe Java SDK.
+      Set Stripe.apiKey via @Value. Use typed request builders (ChargeCreateParams, etc.).
+      Catch StripeException and wrap in ApiException subclass.
+
+  - namespace: sendgrid
+    display: SendGrid
+    spring_pattern: Spring Mail or SendGrid Java SDK
+    stub_type: sdk_wrapper
+    dependencies:
+      - groupId: com.sendgrid
+        artifactId: sendgrid-java
+        version: "4.10.1"
+    llm_instruction: |
+      Convert this SendGrid connector to a Spring @Service using the SendGrid Java SDK.
+      Inject API key via @Value. Build Mail objects and call sendGrid.api(new Request()).
+
+  - namespace: kafka
+    display: Apache Kafka
+    spring_pattern: Spring Kafka KafkaTemplate + @KafkaListener
+    stub_type: jms_bridge
+    dependencies:
+      - groupId: org.springframework.kafka
+        artifactId: spring-kafka
+    llm_instruction: |
+      Convert this Kafka connector to Spring Kafka. Use KafkaTemplate<String, Object> for
+      publishing (convertAndSend). Use @KafkaListener for consuming. Configure via
+      spring.kafka.* in application.yml. Map Mule destination to topic name.
+
+  - namespace: rabbitmq
+    display: RabbitMQ
+    spring_pattern: Spring AMQP RabbitTemplate + @RabbitListener
+    stub_type: jms_bridge
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-amqp
+    llm_instruction: |
+      Convert this RabbitMQ connector to Spring AMQP. Use RabbitTemplate.convertAndSend()
+      for publishing. Use @RabbitListener for consuming. Configure exchange/queue/routing-key
+      in a @Configuration class. Map Mule destination to routing key.
+
+  - namespace: mongodb
+    display: MongoDB
+    spring_pattern: Spring Data MongoDB MongoRepository
+    stub_type: jpa_extension
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-data-mongodb
+    llm_instruction: |
+      Convert this MongoDB connector to Spring Data MongoDB. Create a @Document class for
+      the collection. Create a MongoRepository<Entity, String> interface. Use @Query for
+      complex find operations. Map Mule operations to repository method calls.
+
+  - namespace: redis
+    display: Redis
+    spring_pattern: Spring Data Redis RedisTemplate
+    stub_type: jpa_extension
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-data-redis
+    llm_instruction: |
+      Convert this Redis connector to Spring Data Redis. Inject RedisTemplate<String, Object>.
+      Map Mule set/get/delete to opsForValue().set/get/delete. For object storage, use
+      Jackson serialization. Configure via spring.redis.* in application.yml.
+
+  - namespace: sftp
+    display: SFTP
+    spring_pattern: Apache Commons VFS or JSch @Service
+    stub_type: file_adapter
+    dependencies:
+      - groupId: com.jcraft
+        artifactId: jsch
+        version: "0.1.55"
+    llm_instruction: |
+      Convert this SFTP connector to a Spring @Service using JSch. Inject host/user/password
+      via @Value. Create SftpClient with connection pooling. Map Mule read/write/move to
+      JSch ChannelSftp methods. Throw SftpException wrapped in ApiException.
+
+  - namespace: s3
+    display: AWS S3
+    spring_pattern: AWS SDK v2 S3Client @Service
+    stub_type: sdk_wrapper
+    dependencies:
+      - groupId: software.amazon.awssdk
+        artifactId: s3
+        version: "2.25.0"
+    llm_instruction: |
+      Convert this S3 connector to AWS SDK v2. Inject S3Client via @Bean. Use
+      PutObjectRequest/GetObjectRequest/DeleteObjectRequest. Stream large files using
+      ResponseInputStream. Inject bucket name and region via @Value.
+
+  - namespace: sqs
+    display: AWS SQS
+    spring_pattern: AWS SDK v2 SqsClient or Spring Cloud AWS
+    stub_type: jms_bridge
+    dependencies:
+      - groupId: software.amazon.awssdk
+        artifactId: sqs
+        version: "2.25.0"
+    llm_instruction: |
+      Convert this SQS connector to AWS SDK v2 SqsClient or Spring Cloud AWS SQS.
+      Use SqsTemplate (Spring Cloud) or SqsClient.sendMessage() directly. For listeners,
+      use @SqsListener (Spring Cloud) or a @Scheduled polling method.
+
+  - namespace: soap
+    display: SOAP / Web Service Consumer
+    spring_pattern: Spring WebServiceTemplate or JAX-WS @Service
+    stub_type: sdk_wrapper
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-web-services
+    llm_instruction: |
+      Convert this SOAP connector to Spring WebServiceTemplate. Generate client stubs from
+      WSDL using wsimport. Use WebServiceTemplate.marshalSendAndReceive(). Inject endpoint
+      URL via @Value. Wrap SOAP faults in ApiException subclass.
+
+  - namespace: wsc
+    display: Web Service Consumer
+    spring_pattern: Spring WebServiceTemplate
+    stub_type: sdk_wrapper
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-web-services
+    llm_instruction: |
+      Convert this Web Service Consumer to Spring WebServiceTemplate. See SOAP instructions above.
+
+  - namespace: objectstore
+    display: Mule Object Store
+    spring_pattern: Spring Cache with Caffeine or Redis backend
+    stub_type: jpa_extension
+    dependencies:
+      - groupId: org.springframework.boot
+        artifactId: spring-boot-starter-cache
+      - groupId: com.github.ben-manes.caffeine
+        artifactId: caffeine
+    llm_instruction: |
+      Convert this Object Store usage to Spring Cache (@Cacheable/@CachePut/@CacheEvict).
+      If TTL is needed use Caffeine with expireAfterWrite. If distributed, use Redis.
+      Cache key should match the Mule Object Store key pattern.
